@@ -1,13 +1,19 @@
 
 import threading
-from mock_datawrite import mock_stream_to_buffer
+from mock_datawrite import mock_losgatos
 from write_KML import write_KML
 
+
+device = "losgatos"
+cfg = f"{device}" + ".cfg"
+
+
 def datasave():
-    mock_stream_to_buffer("merge.txt", "Buffer")
+    if device == "losgatos":
+        mock_losgatos("merge.txt", "Buffer")
 
 def plot():
-    write_KML()   # your while True loop
+    write_KML(config_filename=cfg)  
 
 if __name__ == "__main__":
     t1 = threading.Thread(target=datasave, daemon=False)

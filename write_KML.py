@@ -6,6 +6,44 @@ import time
 import os
 import shutil
 from datetime import datetime
+import configparser
+
+def read_config(filename='PicarroGPSconfig.cfg'):
+#def read_config(filename = ):
+    """Reads config file and returns config dictionary.
+
+    Parameters
+    ----------
+    filename : :class:`str <python:str>`
+        relative or absolute path to file and filename of the config file.
+
+    Returns
+    -------
+    :class:`dict <python:dict>`
+        Dictionary containing the config values.
+
+    Notes
+    -----
+    Conversion of the different fields should take place in this routine
+
+
+    """
+
+    config = configparser.ConfigParser(allow_no_value=True)
+    file = os.path.abspath(filename)
+    config.read(file)
+    print("CONFIG FILE:", file)
+    print("EXISTS:", os.path.exists(file))
+
+    config.read(file)
+    print("FILES READ:", config.read(file))   
+    print("SECTIONS FOUND:", config.sections())    
+        #files_read = config.read(file)
+        #print("Config file read:", files_read)
+        #print("Sections found:", config.sections())
+
+    return config
+
 
 def sync_buffer_to_local(buffer_dir="Buffer", local_dir="LocalBuffer"):
     os.makedirs(local_dir, exist_ok=True)
@@ -28,83 +66,79 @@ def local_data_reader(local_dir="LocalBuffer"):
                 yield lines[1].strip()   # skip header
 
 
+# == KML definition ==========
+# colors = ["ff0000ff", "ff00ffff", "ff00ff00", "ff00ff00", "ff0000ff"]
+def generate_color_scale(nbins):
+    colors = []
 
-colors = ["ff0000ff", "ff00ffff", "ff00ff00", "ff00ff00", "ff0000ff"]
+    for i in range(nbins):
+        ratio = i / (nbins - 1)
 
-def init_kml_5step(filename):
+        r = int(255 * ratio)
+        g = 0
+        b = int(255 * (1 - ratio))
+
+        # KML format: AABBGGRR
+        color = f"ff{b:02x}{g:02x}{r:02x}"
+        colors.append(color)
+
+    return colors
+
+def generate_styles(nbins):
+    colors = generate_color_scale(nbins)
+
+    styles = ""
+    for i, color in enumerate(colors):
+        styles += f"""
+<Style id="bin_{i}">
+  <IconStyle>
+    <color>{color}</color>
+    <scale>0.6</scale>
+    <Icon>
+      <href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href>
+    </Icon>
+  </IconStyle>
+</Style>
+"""
+    return styles
+
+def init_kml(filename, nbins):
     tmp = filename + ".tmp"
-
-    styles = """
-<Style id="CH4_1C2H6_1"><IconStyle><color>ff0000ff</color><scale>0.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_1C2H6_2"><IconStyle><color>ff00ffff</color><scale>0.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_1C2H6_3"><IconStyle><color>ff00ff00</color><scale>0.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_1C2H6_4"><IconStyle><color>ff00ffff</color><scale>0.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_1C2H6_5"><IconStyle><color>ff0000ff</color><scale>0.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-
-<Style id="CH4_2C2H6_1"><IconStyle><color>ff0000ff</color><scale>0.4</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_2C2H6_2"><IconStyle><color>ff00ffff</color><scale>0.4</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_2C2H6_3"><IconStyle><color>ff00ff00</color><scale>0.4</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_2C2H6_4"><IconStyle><color>ff00ffff</color><scale>0.4</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_2C2H6_5"><IconStyle><color>ff0000ff</color><scale>0.4</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-
-<Style id="CH4_3C2H6_1"><IconStyle><color>ff0000ff</color><scale>0.6</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_3C2H6_2"><IconStyle><color>ff00ffff</color><scale>0.6</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_3C2H6_3"><IconStyle><color>ff00ff00</color><scale>0.6</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_3C2H6_4"><IconStyle><color>ff00ffff</color><scale>0.6</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_3C2H6_5"><IconStyle><color>ff0000ff</color><scale>0.6</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-
-<Style id="CH4_4C2H6_1"><IconStyle><color>ff0000ff</color><scale>0.8</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_4C2H6_2"><IconStyle><color>ff00ffff</color><scale>0.8</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_4C2H6_3"><IconStyle><color>ff00ff00</color><scale>0.8</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_4C2H6_4"><IconStyle><color>ff00ffff</color><scale>0.8</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_4C2H6_5"><IconStyle><color>ff0000ff</color><scale>0.8</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-
-<Style id="CH4_5C2H6_1"><IconStyle><color>ff0000ff</color><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_5C2H6_2"><IconStyle><color>ff00ffff</color><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_5C2H6_3"><IconStyle><color>ff00ff00</color><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_5C2H6_4"><IconStyle><color>ff00ffff</color><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-<Style id="CH4_5C2H6_5"><IconStyle><color>ff0000ff</color><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/road_shield3.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
-"""
-
+    styles = generate_styles(nbins= nbins)
     content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-<Document>
-<name>Realtime Track</name>
-{styles}
-<Folder>
-<!-- INSERT_HERE -->
-</Folder>
-</Document>
-</kml>
-"""
+    <kml xmlns="http://www.opengis.net/kml/2.2">
+    <Document>
+    <name>Realtime Track</name>
+    {styles}
+    <Folder>
+    <!-- INSERT_HERE -->
+    </Folder>
+    </Document>
+    </kml>
+    """
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(content)
 
     os.replace(tmp, filename)
 
+def value_to_bin(value, vmin, vmax, nbins):
+    if value <= vmin:
+        return 0
+    if value >= vmax:
+        return nbins - 1
 
-def ch4_to_step(ch4, vmin=1.9, vmax=2.1):
-    steps = 5
-    step = int((ch4 - vmin) / (vmax - vmin) * steps) + 1
-    step = max(1, min(5, step))  
-    return step
+    step = (vmax - vmin) / nbins
+    return int((value - vmin) / step)
 
-def c2h6_to_step(c2h6, vmin= -1.8, vmax = 1.8):
-    steps = 5
-    step = int((c2h6 - vmin) / (vmax - vmin) * steps) + 1
-    step = max(1, min(5, step))  
-    return step
-def add_point_5step(lat, lon, name, ch4, c2h6, alt, data_dict, filename="merge2.kml"):
+def add_point(lat, lon, name, value, alt, data_dict, filename="merge2.kml"):
     """
     data_dict: {column_name: value, ...}
     """
-    ch4_step = ch4_to_step(ch4)
-    c2h6_step = c2h6_to_step(c2h6)
-    style_id = f"CH4_{ch4_step}C2H6_{c2h6_step}"
-
     
-    table_rows = "".join([f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in data_dict.items()])
-    html_table = f"<table border='1'>{table_rows}</table>"
+    style_id = value_to_bin(value, vmin, vmax, nbins)   # how to deal with seveeral spieces ???? 
+    
+    # table_rows = "".join([f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in data_dict.items()])
+    # html_table = f"<table border='1'>{table_rows}</table>"
 
     tmp = filename + ".tmp"
 
@@ -115,7 +149,6 @@ def add_point_5step(lat, lon, name, ch4, c2h6, alt, data_dict, filename="merge2.
 <Placemark>
   <name>{name}</name>
   <styleUrl>#{style_id}</styleUrl>
-  <description><![CDATA[{html_table}]]></description>
   <Point>
     <extrude>1</extrude>
     <altitudeMode>relativeToGround</altitudeMode>
@@ -176,8 +209,15 @@ def write_current_pointer(all_files, active_index):
         f.write(content)
     os.replace("current.kml.tmp", "current.kml")
 
+
+
+
+
 # == Main ===========
-def write_KML():
+def write_KML(config_filename):
+    config = read_config(config_filename)
+    reprocessfolder = config['Paths']['reprocessfolder']  # Local buffer
+    kml_savefolder = config['Paths']['kmlpath']
     points_per_file = 300
     file_index = 0
     point_counter = 0
@@ -185,9 +225,9 @@ def write_KML():
 
     # Initialize first file
     file_index += 1
-    kmlfile = f"merge3d_{file_index}.kml"
+    kmlfile = f"{kml_savefolder}/merge3d_{file_index}.kml"
     all_files.append(kmlfile)
-    init_kml_5step(kmlfile)
+    init_kml(kmlfile, config['Device']['nbins'].init())
 
     write_current_pointer(all_files, active_index=0)
 
@@ -197,8 +237,7 @@ def write_KML():
 
         # Sync raw data
         sync_buffer_to_local()
-
-        files = sorted(os.listdir("LocalBuffer")) # files are the current entire
+        files = sorted(os.listdir(reprocessfolder)) # files are the current entire
         new_files = files[(file_index-1) * 300 :] # the lastest 300
 
 
@@ -210,7 +249,7 @@ def write_KML():
 
             processed_files.add(fname)
 
-            with open(os.path.join("LocalBuffer", fname), "r") as f:
+            with open(os.path.join(reprocessfolder, fname), "r") as f:
                 lines = f.readlines()
                 if len(lines) < 2:
                     continue
@@ -241,7 +280,6 @@ def write_KML():
                 point_counter = 0
                 file_index += 1
 
-                kmlfile = f"merge3d_{file_index}.kml"
                 all_files.append(kmlfile)
 
                 init_kml_5step(kmlfile)

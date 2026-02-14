@@ -4,7 +4,7 @@ import time
 import shutil
 from datetime import datetime
 
-def mock_stream_to_buffer(input_file, buffer_folder="Buffer"):
+def mock_losgatos(input_file, buffer_folder="Buffer"):
     os.makedirs(buffer_folder, exist_ok=True)
 
     with open(input_file, "r") as f:
@@ -33,4 +33,4 @@ def mock_stream_to_buffer(input_file, buffer_folder="Buffer"):
 # run.
 if __name__ == "__main__":
     
-    mock_stream_to_buffer("merge.txt")            
+    mock_losgatos("merge.txt")            
